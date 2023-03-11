@@ -8,6 +8,14 @@ const users = [
     username: "John Doe",
     email: "test@gmail.com",
     hashedPassword: "password",
+    isAdmin: false,
+  },
+  {
+    id: 2,
+    username: "admin",
+    email: "admin@gmail.com",
+    hashedPassword: "password",
+    isAdmin: true,
   },
 ];
 
@@ -20,10 +28,10 @@ const register = async (req, res) => {
     if (checkUser)
       return res.status(400).json({ message: "Email is already in use" });
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const user = { id, username, email, hashedPassword };
+    // const salt = await bcrypt.genSalt(10);
+    // const hashedPassword = await bcrypt.hash(password, salt);
+    // const user = { id, username, email, hashedPassword, isAdmin: false };
+    const user = { id, username, email, password, isAdmin: false };
 
     users.push(user);
 
@@ -45,12 +53,13 @@ const login = async (req, res) => {
     if (!checkUser)
       return res.status(400).json({ message: "User does not exist" });
 
-    const validPassword = bcrypt.compareSync(pwd, checkUser.hashedPassword);
+    // const validPassword = bcrypt.compareSync(pwd, checkUser.hashedPassword);
 
-    if (!validPassword)
-      return res.status(400).json({ message: "Invalid password" });
+    // if (!validPassword)
+    //   return rs.status(400).json({ message: "Invalid password" });
 
-    const { hashedPassword, ...userWithoutPassword } = checkUser;
+    // const { hashedPassword, ...userWithoutPassword } = checkUser;
+    const { password, ...userWithoutPassword } = checkUser;
 
     const token = jwt.sign(
       { ...userWithoutPassword },
