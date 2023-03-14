@@ -1,50 +1,41 @@
-require("dotenv").config();
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-
-const users = [
-  {
-    id: 1,
-    username: "admin",
-    email: "admin@gmail.com",
-    // hashedPassword: "password",
-    password: "password",
-    isAdmin: true,
-    address: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
-  },
-  {
-    id: 2,
-    username: "John Doe",
-    email: "test@gmail.com",
-    // hashedPassword: "password",
-    password: "password",
-    isAdmin: false,
-    address: "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
-  },
-];
+const { User } = require("../models/users");
+const validateUser = require("../utils/validator");
+const _ = require("lodash");
 
 const register = async (req, res) => {
+  const userInfo = _.pick(req.body, [
+    "username",
+    "email",
+    "password",
+    "address",
+  ]);
   try {
-    const { id, username, email, password, address } = req.body;
+    const { error } = validateUser(userInfo);
+    if (error) return res.status(400).send(error.details[0].message);
 
-    const checkEmailUser = users.find((user) => user.email === email);
+    let user = await User.findOne({ email: userInfo.email });
+    if (user)
+      return res.status(400).send({ message: "Email already registered." });
 
-    if (checkEmailUser)
-      return res.status(400).json({ message: "Email is already in use" });
-
-    const checkAddressUser = users.find((user) => user.address == address);
-
-    if (checkAddressUser)
+    user = await User.findOne({ address: userInfo.address });
+    if (user)
       return res
         .status(400)
-        .json({ message: "Metamask account already in use" });
+        .send({ message: "Metamask account already registered." });
 
-    // const salt = await bcrypt.genSalt(10);
-    // const hashedPassword = await bcrypt.hash(password, salt);
-    // const user = { id, username, email, hashedPassword, address, isAdmin: false };
-    const user = { id, username, email, password, address, isAdmin: false };
+    user = new User({
+      ...userInfo,
+    });
 
-    users.push(user);
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(user.password, salt);
+
+    try {
+      await user.save();
+    } catch (err) {
+      return res.status(400).send(err.message);
+    }
 
     return res.status(200).json({
       message: "User registered successfully",
@@ -57,33 +48,23 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const { email, password: pwd, address } = req.body;
+    let user = await User.findOne({ email: req.body.email });
+    if (!user)
+      return res.status(400).json({ message: "Invalid email or password." });
 
-    const checkUser = users.find((user) => user.email === email);
-
-    if (!checkUser)
-      return res.status(400).json({ message: "User does not exist" });
-
-    if (checkUser.address !== address)
-      return res
-        .status(400)
-        .json({ message: "Use the metamask account linked with the email" });
-
-    // const validPassword = bcrypt.compareSync(pwd, checkUser.hashedPassword);
-
-    // if (!validPassword)
-    //   return rs.status(400).json({ message: "Invalid password" });
-
-    // const { hashedPassword, ...userWithoutPassword } = checkUser;
-    const { password, ...userWithoutPassword } = checkUser;
-
-    const token = jwt.sign(
-      { ...userWithoutPassword },
-      process.env.JWT_PRIVATE_KEY,
-      {
-        expiresIn: 900, // 15 min
-      }
+    const validPassword = await bcrypt.compare(
+      req.body.password,
+      user.password
     );
+    if (!validPassword)
+      return res.status(400).send({ message: "Invalid email or password." });
+
+    if (user.address !== req.body.address)
+      return res.status(400).send({
+        message: "Use the metamask account linked with the email",
+      });
+
+    const token = user.generateAuthToken();
 
     res.cookie("auth_token", token, {
       sameSite: "none",
@@ -91,6 +72,14 @@ const login = async (req, res) => {
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24, // 1 day
     });
+
+    const userWithoutPassword = _.pick(user, [
+      "_id",
+      "username",
+      "email",
+      "address",
+      "isAdmin",
+    ]);
 
     return res.status(200).json({
       ...userWithoutPassword,

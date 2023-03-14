@@ -10,6 +10,7 @@ mongoose
   .connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
+    dbName: "election_app",
   })
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.log(err));
@@ -33,5 +34,5 @@ app.get("/", (req, res) => {
 app.use("/auth", auth);
 
 app.listen(3000, () => {
-  console.log("Example app listening on port 3000!");
+  console.log("App listening on port 3000!");
 });
