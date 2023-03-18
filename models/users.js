@@ -38,6 +38,11 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  otp: {
+    type: String,
+    trim: true,
+    minLength: 6,
+  },
 });
 
 userSchema.methods.generateAuthToken = function () {

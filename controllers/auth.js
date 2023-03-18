@@ -2,6 +2,8 @@ const bcrypt = require("bcrypt");
 const { User } = require("../models/users");
 const validateUser = require("../utils/validator");
 const _ = require("lodash");
+const { generateOTP } = require("../utils/otp");
+const { sendMail } = require("../utils/verificationMail");
 
 const register = async (req, res) => {
   const userInfo = _.pick(req.body, [
@@ -64,6 +66,13 @@ const login = async (req, res) => {
         message: "Use the metamask account linked with the email",
       });
 
+    const otp = generateOTP();
+    user.otp = otp;
+
+    await user.save();
+
+    sendMail({ to: user.email, otp: otp });
+
     const token = user.generateAuthToken();
 
     res.cookie("auth_token", token, {
@@ -72,6 +81,37 @@ const login = async (req, res) => {
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24, // 1 day
     });
+
+    return res.status(200).json({
+      message: "User logged in successfully",
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json(error);
+  }
+};
+
+const verify = async (req, res) => {
+  const { email, otp, address } = req.body;
+
+  try {
+    if (!req.cookies.auth_token) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    let user = await User.findOne({ email: email });
+    if (!user) return res.status(400).json({ message: "invalid email" });
+
+    if (user.address !== address)
+      return res.status(400).send({
+        message: "Use the metamask account linked with the email",
+      });
+
+    if (user.otp !== otp)
+      return res.status(400).json({ message: "Invalid otp" });
+
+    user.otp = null;
+    await user.save();
 
     const userWithoutPassword = _.pick(user, [
       "_id",
@@ -82,7 +122,8 @@ const login = async (req, res) => {
     ]);
 
     return res.status(200).json({
-      ...userWithoutPassword,
+      message: "User verified successfully",
+      user: userWithoutPassword,
     });
   } catch (error) {
     console.log(error);
@@ -109,4 +150,5 @@ module.exports = {
   register,
   login,
   logout,
+  verify,
 };
