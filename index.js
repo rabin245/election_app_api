@@ -10,7 +10,7 @@ mongoose
   .connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    dbName: "election_app",
+    dbName: "election_app_testnet",
   })
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.log(err));
