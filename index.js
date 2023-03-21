@@ -5,6 +5,7 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const mongoose = require("mongoose");
 require("dotenv").config();
+const { corsOptions } = require("./config/corsOptions");
 
 mongoose
   .connect(process.env.MONGODB_URI, {
@@ -15,12 +16,7 @@ mongoose
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.log(err));
 
-app.use(
-  cors({
-    origin: "http://127.0.0.1:5173",
-    credentials: true,
-  })
-);
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
